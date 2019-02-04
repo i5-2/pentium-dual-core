@@ -10,9 +10,11 @@ The board uses a 1-dimensional representation with padding
 """
 
 import numpy as np
+import time
 from board_util import GoBoardUtil, BLACK, WHITE, EMPTY, BORDER, \
                        PASS, is_black_white, coord_to_point, where1d, \
                        MAXSIZE, NULLPOINT
+from solver import GomokuSolver
 
 class SimpleGoBoard(object):
 
@@ -419,8 +421,15 @@ class SimpleGoBoard(object):
 
         return False, None
 
-    def solve_in_time(self, time_limit):
-        # TODO: solve within the specified time_limit
+    def solve_in_time(self, time_limit, color):
         winner = "unknown"
-        move = "a1"
+        move = None
+
+        start = time.time()
+        while (True):
+            winner, move = GomokuSolver.solve(self, color)
+            timeUsed = time.time() - start
+            if (timeUsed >= time_limit):
+                break
+
         return winner, move

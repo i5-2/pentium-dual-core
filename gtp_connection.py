@@ -264,8 +264,11 @@ class GtpConnection():
             else:
                 self.respond("resign")
             return
-        # TODO: get a move from the solver
-        move = self.go_engine.get_move(self.board, color)
+
+        winner, move = self.board.solve_in_time(self.time_limit, color)
+        if (winner != color):
+            move = self.go_engine.get_move(self.board, color)
+
         if move == PASS:
             self.respond("pass")
             return
@@ -366,7 +369,7 @@ class GtpConnection():
         self.time_limit = value
 
     def solve_cmd(self, args):
-        winner, move = self.board.solve_in_time(self.time_limit)
+        winner, move = self.board.solve_in_time(self.time_limit, self.board.current_player)
         if (winner == BLACK):
             message = "b"
         elif (winner == WHITE):
@@ -376,7 +379,8 @@ class GtpConnection():
         else:
             message = "unknown"
         if (winner == self.board.current_player):
-            message += " " + move
+            move_coord = point_to_coord(move, self.board.size)
+            message += " " + format_point(move_coord)
         self.respond(message)
 
 def point_to_coord(point, boardsize):
