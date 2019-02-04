@@ -418,3 +418,9 @@ class SimpleGoBoard(object):
                 return True, BLACK
 
         return False, None
+
+    def solve_in_time(self, time_limit):
+        # TODO: solve within the specified time_limit
+        winner = "unknown"
+        move = "a1"
+        return winner, move

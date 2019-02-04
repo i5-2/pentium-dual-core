@@ -49,7 +49,9 @@ class GtpConnection():
             "gogui-rules_side_to_move": self.gogui_rules_side_to_move_cmd,
             "gogui-rules_board": self.gogui_rules_board_cmd,
             "gogui-rules_final_result": self.gogui_rules_final_result_cmd,
-            "gogui-analyze_commands": self.gogui_analyze_cmd
+            "gogui-analyze_commands": self.gogui_analyze_cmd,
+            "timelimit": self.timelimit_cmd,
+            "solve": self.solve_cmd
         }
 
         # used for argument checking
@@ -61,8 +63,12 @@ class GtpConnection():
             "known_command": (1, 'Usage: known_command CMD_NAME'),
             "genmove": (1, 'Usage: genmove {w,b}'),
             "play": (2, 'Usage: play {b,w} MOVE'),
-            "legal_moves": (1, 'Usage: legal_moves {w,b}')
+            "legal_moves": (1, 'Usage: legal_moves {w,b}'),
+            "timelimit": (1, 'Usage: timelimit INT'),
+            "solve": (0, 'Usage: solve')
         }
+
+        self.time_limit = 1
     
     def write(self, data):
         stdout.write(data) 
@@ -258,6 +264,7 @@ class GtpConnection():
             else:
                 self.respond("resign")
             return
+        # TODO: get a move from the solver
         move = self.go_engine.get_move(self.board, color)
         if move == PASS:
             self.respond("pass")
@@ -346,6 +353,31 @@ class GtpConnection():
                      "pstring/Rules GameID/gogui-rules_game_id\n"
                      "pstring/Show Board/gogui-rules_board\n"
                      )
+
+    def timelimit_cmd(self, args):
+        try:
+            value = int(args[0])
+            if (value < 1 or value > 100):
+                raise ValueError
+        except:
+            self.respond("seconds must be an integer between 1 and 100")
+            return
+
+        self.time_limit = value
+
+    def solve_cmd(self, args):
+        winner, move = self.board.solve_in_time(self.time_limit)
+        if (winner == BLACK):
+            message = "b"
+        elif (winner == WHITE):
+            message = "w"
+        elif (winner == PASS):
+            message = "draw"
+        else:
+            message = "unknown"
+        if (winner == self.board.current_player):
+            message += " " + move
+        self.respond(message)
 
 def point_to_coord(point, boardsize):
     """
