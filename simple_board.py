@@ -426,10 +426,10 @@ class SimpleGoBoard(object):
         move = None
 
         start = time.time()
-        while (True):
-            winner, move = GomokuSolver.solve(self, color)
-            timeUsed = time.time() - start
-            if (timeUsed >= time_limit):
-                break
+        lookahead = 1
+        all_moves = GoBoardUtil.generate_legal_moves_gomoku(self)
+        while ((time.time() - start) < time_limit):
+            winner, move = GomokuSolver.solve(self, color, lookahead, all_moves)
+            lookahead += 1
 
         return winner, move

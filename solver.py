@@ -1,22 +1,27 @@
-from board_util import GoBoardUtil, BLACK, WHITE, PASS, where1d
+from board_util import GoBoardUtil, BLACK, WHITE, PASS
 
-def rank_move(board, move, color):
-    # TODO: heuristic function for ranking a move
+# heuristic function for ranking a move
+def rank_move(board, move, color, lookahead):
+
+    base_value = 25
+    for i in range(0, lookahead):
+        # TODO: if i turn(s) away from winning, play this move
+        if (False):
+            base_value = 5
+            break
+        # TODO: if opponent is i turn(s) away from winning, play this move
+        if (False):
+            base_value = 5
+            break
     
-    # TODO: if color is one turn away from winning, play that move
+    # TODO: lower heuristic value is better
+    # TODO: if the current move is a part of multiple possible 5-in-a-row patterns, divide the base_value by the number of patterns
+    return base_value
 
-    # TODO: if opponent is one turn away from winning, play that move
-
-    # TODO: if color is two turns away from winning, play that move
-
-    # TODO: general idea, foreach i in MAX_TURN_LOOK_AHEAD: if color is i turns from winning, play that move if opponent is not i turn away from winning.
-
-    return 25
-
-def pick_move(board, all_moves, color):
+def pick_move(board, all_moves, color, lookahead):
     if (len(all_moves) == 0):
         return None
-    all_moves.sort(key=lambda move : rank_move(board, move, color))
+    all_moves.sort(key=lambda move : rank_move(board, move, color, lookahead))
     if (len(all_moves) == 1 or all_moves[0] != all_moves[1]):
         return all_moves[0]
     # TODO: pick a random move out of all of the ones that are equally as good
@@ -25,10 +30,9 @@ def pick_move(board, all_moves, color):
 class GomokuSolver:
 
     @staticmethod
-    def solve(board, color):
-        winner = "unknown"
+    def solve(board, color, lookahead, all_moves):
+        winner = color
 
         # TODO: determine winner
-        all_moves = GoBoardUtil.generate_legal_moves_gomoku(board)
-        move = pick_move(board, all_moves, color)
+        move = pick_move(board, all_moves, color, lookahead)
         return winner, move
