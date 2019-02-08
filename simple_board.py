@@ -11,10 +11,14 @@ The board uses a 1-dimensional representation with padding
 
 import numpy as np
 import time
+import signal, os
 from board_util import GoBoardUtil, BLACK, WHITE, EMPTY, BORDER, \
                        PASS, is_black_white, coord_to_point, where1d, \
                        MAXSIZE, NULLPOINT
 from solver import GomokuSolver
+
+def timeout(signum, frame):
+    raise OSError("Could not find solution within given amount of time")
 
 class SimpleGoBoard(object):
 
@@ -352,6 +356,13 @@ class SimpleGoBoard(object):
         self.current_player = GoBoardUtil.opponent(color)
         return True
         
+    def undo_move(self, point, color):
+        assert is_black_white(color)
+        assert point != PASS
+        assert self.board[point] != EMPTY
+        self.board[point] = EMPTY
+        self.current_player = GoBoardUtil.opponent(color)
+
     def _point_direction_check_connect_gomoko(self, point, shift):
         """
         Check if the point has connect5 condition in a direction
@@ -426,10 +437,48 @@ class SimpleGoBoard(object):
         move = None
 
         start = time.time()
-        lookahead = 1
         all_moves = GoBoardUtil.generate_legal_moves_gomoku(self)
-        while ((time.time() - start) < time_limit):
-            winner, move = GomokuSolver.solve(self, color, lookahead, all_moves)
-            lookahead += 1
+
+        try:
+            signal.signal(signal.SIGALRM, timeout)
+            signal.alarm(time_limit)
+            winner, move = GomokuSolver.solve(self, color, all_moves)
+            signal.alarm(0)
+        except OSError:
+            return ("unknown", None)
 
         return winner, move
+
+    def evaluate_for_to_play(self, color):
+        assert self.current_player == color
+        winner = self.check_game_end_gomoku()
+        if (winner[0]):
+            if (winner[1] == color):
+                return 100
+            else:
+                return -100
+        all_moves = GoBoardUtil.generate_legal_moves_gomoku(self)
+        for move in all_moves:
+            self.play_move_gomoku(move, color)
+            # one move away from winning
+            if (self.point_check_game_end_gomoku(move)):
+                self.undo_move(move, color)
+                return 90
+            self.undo_move(move, color)
+
+            self.play_move_gomoku(move, GoBoardUtil.opponent(color))
+            # other player is one move away from winning
+            if (self.point_check_game_end_gomoku(move)):
+                self.undo_move(move, GoBoardUtil.opponent(color))
+                return -90
+            self.undo_move(move, GoBoardUtil.opponent(color))
+        
+        # TODO: for each row, check combos
+        # TODO: for each column, check combos
+        # TODO: for each diagonal, check combos
+        heuristic = 1
+        for r in range(0, self.size):
+            row = self.row_start(r + 1)
+            for c in range(row, row + self.size):
+                pass
+        return heuristic

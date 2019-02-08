@@ -266,7 +266,7 @@ class GtpConnection():
             return
 
         winner, move = self.board.solve_in_time(self.time_limit, color)
-        if (winner != color):
+        if (winner != color and winner != PASS):
             move = self.go_engine.get_move(self.board, color)
 
         if move == PASS:
@@ -378,7 +378,7 @@ class GtpConnection():
             message = "draw"
         else:
             message = "unknown"
-        if (winner == self.board.current_player):
+        if (winner == self.board.current_player or winner == PASS):
             move_coord = point_to_coord(move, self.board.size)
             message += " " + format_point(move_coord)
         self.respond(message)
