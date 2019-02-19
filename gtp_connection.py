@@ -300,7 +300,8 @@ class GtpConnection():
         for move in moves:
             coords = point_to_coord(move, self.board.size)
             gtp_moves.append(format_point(coords))
-        sorted_moves = ' '.join(sorted(gtp_moves))
+        # adding sort key sorts by letter first then the numeric value A1, A2, > A10
+        sorted_moves = ' '.join(sorted(gtp_moves, key=lambda m: (m[0:1], int(m[1:]))))
         self.respond(sorted_moves)
     
     def gogui_rules_side_to_move_cmd(self, args):
