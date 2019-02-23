@@ -14,6 +14,46 @@ from board_util import GoBoardUtil, BLACK, WHITE, EMPTY, BORDER, \
                        PASS, is_black_white, coord_to_point, where1d, \
                        MAXSIZE, NULLPOINT
 
+winDict = {
+    "x.xxx": True,
+    "xx.xx": True,
+    "xxx.x": True,
+    ".xxxx": True,
+    "xxxx.": True,
+
+    # must block?
+    "o.ooo": False,
+    "oo.oo": False,
+    "ooo.o": False,
+    ".oooo": False,
+    "oooo.": False,
+}
+
+# true = win, false = lose
+threatDict = {
+    "oxxxx.": True, #6
+    ".xxxxo": True, #6
+    "..xxx..": True,#7
+    ".x.xx.": True, #6
+    ".xx.x.": True, #6
+    "o.xxx..": True,#7
+    "..xxx.o": True,#7
+    "xx.xx": True,  #5
+    "x.xxx": True,  #5
+    "xxx.x": True,  #5
+
+    "xoooo.": False, #6
+    ".oooox": False, #6
+    "..ooo..": False,#7
+    ".o.oo.": False, #6
+    ".oo.o.": False, #6
+    "x.ooo..": False,#7
+    "..ooo.x": False,#7
+    "oo.oo": False,  #5
+    "o.ooo": False,  #5
+    "ooo.o": False,  #5
+}
+
 class SimpleGoBoard(object):
 
     def get_color(self, point):
@@ -339,9 +379,9 @@ class SimpleGoBoard(object):
     
     def play_move_gomoku(self, point, color):
         """
-            Play a move of color on point, for the game of gomoku
-            Returns boolean: whether move was legal
-            """
+        Play a move of color on point, for the game of gomoku
+        Returns boolean: whether move was legal
+        """
         assert is_black_white(color)
         assert point != PASS
         if self.board[point] != EMPTY:
@@ -382,8 +422,8 @@ class SimpleGoBoard(object):
     
     def point_check_game_end_gomoku(self, point):
         """
-            Check if the point causes the game end for the game of Gomoko.
-            """
+        Check if the point causes the game end for the game of Gomoko.
+        """
         # check horizontal
         if self._point_direction_check_connect_gomoko(point, 1):
             return True
@@ -404,8 +444,8 @@ class SimpleGoBoard(object):
     
     def check_game_end_gomoku(self):
         """
-            Check if the game ends for the game of Gomoku.
-            """
+        Check if the game ends for the game of Gomoku.
+        """
         white_points = where1d(self.board == WHITE)
         black_points = where1d(self.board == BLACK)
         
@@ -418,3 +458,145 @@ class SimpleGoBoard(object):
                 return True, BLACK
 
         return False, None
+
+    def getPointRep(self, cp, point):
+         return "x" if self.board[point] == cp \
+            else "." if self.board[point] == EMPTY \
+            else "#" if self.board[point] == BORDER \
+            else "o"
+
+    # the first winning position detected, if any
+    def winDetection(self):
+        size = self.size
+        startPoint = size + 2
+
+        points = where1d(self.board == self.current_player)
+
+        print("Horizontal")
+        # horizontal checks
+        for rowStart in range(startPoint, startPoint + size*size + 1, size+1):
+            winStr = ""
+            for point in range(rowStart, rowStart + size):
+                winStr += self.getPointRep(self.current_player, point)
+                if len(winStr) == 6:
+                    winStr = winStr[1:]
+                if len(winStr) == 5:
+                    print(winStr)
+                    if winStr in winDict:
+                        if winDict[winStr]:
+                            return point + (winStr.index(".")-4)
+
+        print("Vertical")
+        # vertical checks
+        for colStart in range(startPoint, startPoint + size):
+            winStr = ""
+            for point in range(colStart, colStart + (size+1)*(size-1) + 1, size+1):
+                winStr += self.getPointRep(self.current_player, point)
+                if len(winStr) == 6:
+                    winStr = winStr[1:]
+                if len(winStr) == 5:
+                    print(winStr)
+                    if winStr in winDict:
+                        if winDict[winStr]:
+                            return point + ((winStr.index(".")-4)*(size+1))
+
+        # diagonal I
+        print("Diag I")
+        exists = size - 5
+        checkRight = startPoint + 1
+        checkDown = startPoint + size + 1
+        dIStarts = [startPoint]
+        for i in range(0, exists):
+            dIStarts.append(checkDown)
+            dIStarts.append(checkRight)
+            checkRight += 1
+            checkDown += size+1
+        dSize = size
+        reduceDSize = True
+        for start in dIStarts:
+            point = start
+            winStr = ""
+            for i in range(0, dSize):
+                winStr += self.getPointRep(self.current_player, point)
+                if len(winStr) == 6:
+                    winStr = winStr[1:]
+                if len(winStr) == 5:
+                    print(winStr)
+                    if winStr in winDict:
+                        if winDict[winStr]:
+                            return point + ((winStr.index(".")-4)*(size+2))
+                point += size+2
+            if reduceDSize:
+                dSize -= 1
+            reduceDSize = not reduceDSize
+
+        # diagonal II
+        print("diag II")
+        checkLeft = startPoint + size - 2
+        checkDown = startPoint + size + 1
+        dIIStarts = [startPoint + size - 1]
+        exists = size - 5
+        for i in range(0, exists):
+            dIIStarts.append(checkLeft)
+            dIIStarts.append(checkDown)
+            checkLeft -= 1
+            checkDown += size+1
+        dSize = size
+        reduceDSize = True
+        for start in dIIStarts:
+            point = start
+            winStr = ""
+            for i in range(0, dSize):
+                winStr += self.getPointRep(self.current_player, point)
+                if len(winStr) == 6:
+                    winStr = winStr[1:]
+                if len(winStr) == 5:
+                    print(winStr)
+                    if winStr in winDict:
+                        if winDict[winStr]:
+                            return point + ((winStr.index(".")-4)*(size))
+                point += size
+            if reduceDSize:
+                dSize -= 1
+            reduceDSize = not reduceDSize
+        return False
+
+    # returns (score, moveThatCausedScore)
+    def negaAB(self, alpha, beta, d):
+        empty_points = self.get_empty_points()
+        print(self.current_player, empty_points)
+        if len(empty_points) == 0 or d == 0: return 0, None
+
+        canWin = self.winDetection()
+        if canWin:
+            return 1, canWin
+
+        while (len(empty_points) != 0):
+            point = empty_points[-1] # O(1) operation
+            empty_points = empty_points[:-1]
+            self.board[point] = self.current_player
+            bstr = ""
+            for i in range(len(self.board)):
+                if (i % (self.size+1) == 0): bstr += "\n"
+                bstr += "b" if self.board[i] == BLACK else "w" if self.board[i] == WHITE else "."
+            print(bstr)
+            
+            if self.point_check_game_end_gomoku(point): # state.IsTerminal()
+                print("player", self.current_player, "won", point)
+                self.board[point] = EMPTY
+                return 1, point
+
+            # switch current player
+            self.current_player = GoBoardUtil.opponent(self.current_player)
+            result = self.negaAB(-beta, -alpha, d-1)
+            v = -result[0]
+            if (v > alpha): alpha = v
+            self.current_player = GoBoardUtil.opponent(self.current_player)
+
+            # set the current player back and restore the empty point
+            self.board[point] = EMPTY
+
+            if (v >= beta): return beta, point
+        return alpha, None
+
+

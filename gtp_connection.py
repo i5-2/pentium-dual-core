@@ -7,11 +7,15 @@ in the Deep-Go project by Isaac Henrion and Amos Storkey
 at the University of Edinburgh.
 """
 import traceback
+import signal
 from sys import stdin, stdout, stderr
 from board_util import GoBoardUtil, BLACK, WHITE, EMPTY, BORDER, PASS, \
                        MAXSIZE, coord_to_point
 import numpy as np
 import re
+
+def throw_key_interrupt(signum=None, frame=None):
+    raise KeyboardInterrupt("Solution not found.")
 
 class GtpConnection():
 
@@ -26,6 +30,7 @@ class GtpConnection():
         board: 
             Represents the current board state.
         """
+        self.time_limit = 1
         self._debug_mode = debug_mode
         self.go_engine = go_engine
         self.board = board
@@ -49,7 +54,8 @@ class GtpConnection():
             "gogui-rules_side_to_move": self.gogui_rules_side_to_move_cmd,
             "gogui-rules_board": self.gogui_rules_board_cmd,
             "gogui-rules_final_result": self.gogui_rules_final_result_cmd,
-            "gogui-analyze_commands": self.gogui_analyze_cmd
+            "gogui-analyze_commands": self.gogui_analyze_cmd,
+            "timelimit": self.timelimit_cmd,
         }
 
         # used for argument checking
@@ -61,7 +67,8 @@ class GtpConnection():
             "known_command": (1, 'Usage: known_command CMD_NAME'),
             "genmove": (1, 'Usage: genmove {w,b}'),
             "play": (2, 'Usage: play {b,w} MOVE'),
-            "legal_moves": (1, 'Usage: legal_moves {w,b}')
+            "legal_moves": (1, 'Usage: legal_moves {w,b}'),
+            "timelimit": (1, 'Usage: timelimit INT'),
         }
     
     def write(self, data):
@@ -110,6 +117,18 @@ class GtpConnection():
             self.debug_msg("Unknown command: {}\n".format(command_name))
             self.error('Unknown command')
             stdout.flush()
+
+    def timelimit_cmd(self, args):
+        try:
+            value = int(args[0])
+            if (value < 1 or value > 100):
+                raise ValueError
+        except:
+            self.respond("seconds must be an integer between 1 and 100")
+            return
+
+        self.time_limit = value
+        self.respond()
 
     def has_arg_error(self, cmd, argnum):
         """
@@ -258,7 +277,16 @@ class GtpConnection():
             else:
                 self.respond("resign")
             return
-        move = self.go_engine.get_move(self.board, color)
+
+        try:
+            #throw_key_interrupt()
+            signal.signal(signal.SIGALRM, throw_key_interrupt)
+            signal.alarm(self.time_limit)
+            winner, move = GoBoardUtil.solve_gomoku(self.board, color)
+            signal.alarm(0)
+        except KeyboardInterrupt:
+            move = self.go_engine.get_move(self.board, color)
+
         if move == PASS:
             self.respond("pass")
             return
