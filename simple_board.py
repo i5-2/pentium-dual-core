@@ -14,6 +14,7 @@ from board_util import GoBoardUtil, BLACK, WHITE, EMPTY, BORDER, \
                        PASS, is_black_white, coord_to_point, where1d, \
                        MAXSIZE, NULLPOINT
 
+# 1 move win (aka "my turn my win")
 winDict = {
     "x.xxx": True,
     "xx.xx": True,
@@ -21,7 +22,7 @@ winDict = {
     ".xxxx": True,
     "xxxx.": True,
 
-    # must block?
+    # must block these, if have none of the above
     "o.ooo": False,
     "oo.oo": False,
     "ooo.o": False,
@@ -29,29 +30,20 @@ winDict = {
     "oooo.": False,
 }
 
-# true = win, false = lose
+# 2 move wins (aka "my turn my win in 2 moves")
+# must be blocked if seen
+# (MyWin, how many steps back to go)
 threatDict = {
-    "oxxxx.": True, #6
-    ".xxxxo": True, #6
-    "..xxx..": True,#7
-    ".x.xx.": True, #6
-    ".xx.x.": True, #6
-    "o.xxx..": True,#7
-    "..xxx.o": True,#7
-    "xx.xx": True,  #5
-    "x.xxx": True,  #5
-    "xxx.x": True,  #5
+    ".x.xx.": (True, 3),
+    ".xx.x.": (True, 2),
+    ".xxx..": (True, 1),
+    "..xxx.": (True, 4),
 
-    "xoooo.": False, #6
-    ".oooox": False, #6
-    "..ooo..": False,#7
-    ".o.oo.": False, #6
-    ".oo.o.": False, #6
-    "x.ooo..": False,#7
-    "..ooo.x": False,#7
-    "oo.oo": False,  #5
-    "o.ooo": False,  #5
-    "ooo.o": False,  #5
+    # must block these, if have none of the above
+    ".x.xx.": (False, 3),
+    ".xx.x.": (False, 2),
+    ".xxx..": (False, 1),
+    "..xxx.": (False, 4),
 }
 
 class SimpleGoBoard(object):
@@ -465,8 +457,22 @@ class SimpleGoBoard(object):
             else "#" if self.board[point] == BORDER \
             else "o"
 
-    # the first winning position detected, if any
+    # dict to look up, winStr, player's list, opponent's list, point to add
+    def check(d, s, cpList, opList, p):
+        if s in d:
+            if d[s]:
+                cpList.append(p)
+            else:
+                opList.append(p)
+
+    # threat = opponent's win
+    # returns ([wins], [win threat], [2m wins], [2m win threats])
     def winDetection(self):
+        myWins = []
+        theirWins = []
+        my2mWins = []
+        their2mWins = []
+
         size = self.size
         startPoint = size + 2
 
@@ -478,13 +484,26 @@ class SimpleGoBoard(object):
             winStr = ""
             for point in range(rowStart, rowStart + size):
                 winStr += self.getPointRep(self.current_player, point)
+                # check 2-move wins
                 if len(winStr) == 6:
+                    if winStr in threatDict:
+                        threat = threatDict[winStr]
+                        if threat[0]:
+                            my2mWins.append(point - threat[1])
+                        else:
+                            their2mWins.append(point - threat[1])
+                    # reduce the string to a 5-long string
                     winStr = winStr[1:]
+                # check for 1-move wins
                 if len(winStr) == 5:
                     print(winStr)
                     if winStr in winDict:
+                        p = point + (winStr.index(".")-4)
                         if winDict[winStr]:
-                            return point + (winStr.index(".")-4)
+                            # can instantly win stop checking
+                            return [p], [], [], []
+                        elif p not in mustBlock:
+                            mustBlock.append(p)
 
         print("Vertical")
         # vertical checks
@@ -497,8 +516,12 @@ class SimpleGoBoard(object):
                 if len(winStr) == 5:
                     print(winStr)
                     if winStr in winDict:
+                        p = point + ((winStr.index(".")-4)*(size+1))
                         if winDict[winStr]:
-                            return point + ((winStr.index(".")-4)*(size+1))
+                            # can instantly win stop checking
+                            return [p], [], [], []
+                        elif p not in mustBlock:
+                            mustBlock.append(p)
 
         # diagonal I
         print("Diag I")
@@ -523,8 +546,13 @@ class SimpleGoBoard(object):
                 if len(winStr) == 5:
                     print(winStr)
                     if winStr in winDict:
+                        p = point + ((winStr.index(".")-4)*(size+2))
                         if winDict[winStr]:
-                            return point + ((winStr.index(".")-4)*(size+2))
+                            # can instantly win stop checking
+                            return [p], [], [], []
+                        elif p not in mustBlock:
+                            mustBlock.append(p)
+
                 point += size+2
             if reduceDSize:
                 dSize -= 1
@@ -532,8 +560,8 @@ class SimpleGoBoard(object):
 
         # diagonal II
         print("diag II")
-        checkLeft = startPoint + size - 2
-        checkDown = startPoint + size + 1
+        checkLeft = startPoint + (size-1) - 1
+        checkDown = startPoint + (size-1) + (size+1)
         dIIStarts = [startPoint + size - 1]
         exists = size - 5
         for i in range(0, exists):
@@ -553,13 +581,19 @@ class SimpleGoBoard(object):
                 if len(winStr) == 5:
                     print(winStr)
                     if winStr in winDict:
+                        p = point + ((winStr.index(".")-4)*(size))
                         if winDict[winStr]:
-                            return point + ((winStr.index(".")-4)*(size))
+                            # can instantly win stop checking
+                            return [p], [], [], []
+                        elif p not in mustBlock:
+                            mustBlock.append(p)
+
                 point += size
             if reduceDSize:
                 dSize -= 1
             reduceDSize = not reduceDSize
-        return False
+
+        return myWins, theirWins, my2mWins, their2mWins
 
     # returns (score, moveThatCausedScore)
     def negaAB(self, alpha, beta, d):
@@ -567,10 +601,39 @@ class SimpleGoBoard(object):
         print(self.current_player, empty_points)
         if len(empty_points) == 0 or d == 0: return 0, None
 
-        canWin = self.winDetection()
-        if canWin:
-            return 1, canWin
-
+        myWins, theirWins, my2mWins, their2mWins = self.winDetection()
+        print("winloseblock:", winPoints, blockPoints)
+        if len(myWins) > 0:
+            return 1, myWins[0]
+        if len(theirWins) > 1:
+            return -1, None # guaranteed loss because you can't handle more than one threat
+        elif len(theirWins) == 1:
+            if len(their2mWins) > 0:
+                return -1, None # cannot block their two guaranteed win moves
+            # must block this point
+            point = blockPoints[0]
+            self.board[point] = self.current_player
+            self.current_player = GoBoardUtil.opponent(self.current_player)
+            result = self.negaAB(-beta, -alpha, d-1)
+            v = -result[0]
+            self.current_player = GoBoardUtil.opponent(self.current_player)
+            self.board[point] = EMPTY
+            return v, point
+        if len(my2mWins) > 0:
+            return 1, my2mWins[0]
+        if len(their2mWins) > 1:
+            return -1, None # guaranteed loss, you can only block one
+        elif len(their2mWins) == 1:
+            # must block this point
+            point = their2mWins[0]
+            self.board[point] = self.current_player
+            self.current_player = GoBoardUtil.opponent(self.current_player)
+            result = self.negaAB(-beta, -alpha, d-1)
+            v = -result[0]
+            self.current_player = GoBoardUtil.opponent(self.current_player)
+            self.board[point] = EMPTY
+            return v, point
+            
         while (len(empty_points) != 0):
             point = empty_points[-1] # O(1) operation
             empty_points = empty_points[:-1]
