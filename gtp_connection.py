@@ -56,6 +56,7 @@ class GtpConnection():
             "gogui-rules_final_result": self.gogui_rules_final_result_cmd,
             "gogui-analyze_commands": self.gogui_analyze_cmd,
             "timelimit": self.timelimit_cmd,
+            "solve": self.solve_cmd
         }
 
         # used for argument checking
@@ -263,6 +264,32 @@ class GtpConnection():
             self.respond()
         except Exception as e:
             self.respond('{}'.format(str(e)))
+    
+    def solve_cmd(self, args):
+        toPlay = self.board.current_player
+        move = None
+        try:
+            signal.signal(signal.SIGALRM, throw_key_interrupt)
+            signal.alarm(self.time_limit)
+            winner, move = GoBoardUtil.solve_gomoku(self.board, toPlay)
+            signal.alarm(0)
+        except KeyboardInterrupt:
+            winner = "unknown"
+
+        if move:
+            move = point_to_coord(move, self.board.size)
+            move = format_point(move)
+
+        if winner == "unknown":
+            self.respond(winner)
+        elif winner == "draw":
+            self.respond(winner + " " + move)
+        elif winner != toPlay:
+            winner = "b" if winner == BLACK else "w"
+            self.respond(winner)
+        else:
+            winner = "b" if winner == BLACK else "w"
+            self.respond(winner + " " + move)
 
     def genmove_cmd(self, args):
         """
@@ -279,7 +306,6 @@ class GtpConnection():
             return
 
         try:
-            #throw_key_interrupt()
             signal.signal(signal.SIGALRM, throw_key_interrupt)
             signal.alarm(self.time_limit)
             winner, move = GoBoardUtil.solve_gomoku(self.board, color)

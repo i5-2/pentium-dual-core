@@ -13,6 +13,7 @@ play B F4
 #?[]
 10 solve
 #?[b]
+gogui-rules_board
 
 clear_board
 play B A4
@@ -30,6 +31,7 @@ play W G3
 play B D4
 20 solve
 #?[b]
+gogui-rules_board
 
 clear_board
 play B D4
@@ -80,6 +82,7 @@ play B A7
 play W A1
 play B A2
 play W G1
+gogui-rules_board
 30 solve
 #?[draw G5]
 

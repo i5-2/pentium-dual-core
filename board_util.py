@@ -128,7 +128,7 @@ class GoBoardUtil(object):
         oldPlayer = board.current_player
         board.current_player = player
 
-        winner, move = board.negaAB(-1, 1, 5)
+        winner, move = board.negaAB(-1, 1, 400)
         print(winner, move)
         if winner == 1:
             winner = player
