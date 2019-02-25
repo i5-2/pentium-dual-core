@@ -1,0 +1,9 @@
+Script started on Mon 25 Feb 2019 11:31:41 AM MST
+uc13[pentium-dual-core]:/cshome/malik2/cmput496/gogui/libxslt-1.1.33/gogui/bin/gogui-regress "python3 ./Gomoku. py" assignment2-public-tests.gtp
+180 unexpected FAIL: Correct 'b C5', got 'unknown'
+190 unexpected FAIL: Correct 'b C5', got 'unknown'
+200 unexpected FAIL: Correct 'b C5', got 'unknown'
+uc13[pentium-dual-core]:exit
+exit
+
+Script done on Mon 25 Feb 2019 11:34:24 AM MST

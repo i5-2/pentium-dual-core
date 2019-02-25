@@ -90,27 +90,6 @@ def coord_to_point(row, col, boardsize):
     return NS * row + col
 
 class GoBoardUtil(object):
-    
-    @staticmethod
-    def generate_legal_moves(board, color):
-        """
-        generate a list of all legal moves on the board.
-        Does not include the Pass move.
-
-        Arguments
-        ---------
-        board : np.array
-            a SIZExSIZE array representing the board
-        color : {'b','w'}
-            the color to generate the move for.
-        """
-        moves = board.get_empty_points()
-        legal_moves = []
-        for move in moves:
-            if board.is_legal(move, color):
-                legal_moves.append(move)
-        return legal_moves
-    
     @staticmethod
     def generate_legal_moves_gomoku(board):
         """
@@ -134,27 +113,34 @@ class GoBoardUtil(object):
         np.random.shuffle(moves)
         return moves[0]
 
-    @staticmethod       
-    def generate_random_move(board, color, use_eye_filter):
-        """
-        Generate a random move.
-        Return PASS if no move found
+    # returns (winner, move)
+    # winner = {BLACK, "draw", WHITE}
+    # move = {None, move}
+    @staticmethod
+    def solve_gomoku(board, player):
+        assert(player == BLACK or player == WHITE)
+        # Check if the game was solved already, return that player and None
+        gameInfo = board.check_game_end_gomoku()
+        if gameInfo[0]:
+            return gameInfo[1], None
 
-        Arguments
-        ---------
-        board : np.array
-            a 1-d array representing the board
-        color : BLACK, WHITE
-            the color to generate the move for.
-        """
-        moves = board.get_empty_points()
-        np.random.shuffle(moves)
-        for move in moves:
-            legal = not (use_eye_filter and board.is_eye(move, color)) \
-                    and board.is_legal(move, color)
-            if legal:
-                return move
-        return PASS
+        # switch the player to who we want to play
+        oldPlayer = board.current_player
+        board.current_player = player
+
+        winner, move = board.negaAB(-1, 1, 400)
+        print(winner, move)
+        if winner == 1:
+            winner = player
+        elif winner == 0:
+            winner = "draw"
+        else: #winner == -1
+            winner = WHITE if player != WHITE else BLACK
+
+        # return the board to the original player
+        board.current_player = oldPlayer
+
+        return winner, move
 
     @staticmethod
     def opponent(color):

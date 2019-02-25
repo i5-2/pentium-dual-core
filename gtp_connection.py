@@ -7,11 +7,15 @@ in the Deep-Go project by Isaac Henrion and Amos Storkey
 at the University of Edinburgh.
 """
 import traceback
+import signal
 from sys import stdin, stdout, stderr
 from board_util import GoBoardUtil, BLACK, WHITE, EMPTY, BORDER, PASS, \
                        MAXSIZE, coord_to_point
 import numpy as np
 import re
+
+def throw_key_interrupt(signum=None, frame=None):
+    raise KeyboardInterrupt("Solution not found.")
 
 class GtpConnection():
 
@@ -26,6 +30,7 @@ class GtpConnection():
         board: 
             Represents the current board state.
         """
+        self.time_limit = 1
         self._debug_mode = debug_mode
         self.go_engine = go_engine
         self.board = board
@@ -65,10 +70,7 @@ class GtpConnection():
             "play": (2, 'Usage: play {b,w} MOVE'),
             "legal_moves": (1, 'Usage: legal_moves {w,b}'),
             "timelimit": (1, 'Usage: timelimit INT'),
-            "solve": (0, 'Usage: solve')
         }
-
-        self.time_limit = 1
     
     def write(self, data):
         stdout.write(data) 
@@ -116,6 +118,18 @@ class GtpConnection():
             self.debug_msg("Unknown command: {}\n".format(command_name))
             self.error('Unknown command')
             stdout.flush()
+
+    def timelimit_cmd(self, args):
+        try:
+            value = int(args[0])
+            if (value < 1 or value > 100):
+                raise ValueError
+        except:
+            self.respond("seconds must be an integer between 1 and 100")
+            return
+
+        self.time_limit = value
+        self.respond()
 
     def has_arg_error(self, cmd, argnum):
         """
@@ -250,6 +264,32 @@ class GtpConnection():
             self.respond()
         except Exception as e:
             self.respond('{}'.format(str(e)))
+    
+    def solve_cmd(self, args):
+        toPlay = self.board.current_player
+        move = None
+        try:
+            signal.signal(signal.SIGALRM, throw_key_interrupt)
+            signal.alarm(self.time_limit)
+            winner, move = GoBoardUtil.solve_gomoku(self.board, toPlay)
+            signal.alarm(0)
+        except KeyboardInterrupt:
+            winner = "unknown"
+
+        if move:
+            move = point_to_coord(move, self.board.size)
+            move = format_point(move)
+
+        if winner == "unknown":
+            self.respond(winner)
+        elif winner == "draw":
+            self.respond(winner + " " + move)
+        elif winner != toPlay:
+            winner = "b" if winner == BLACK else "w"
+            self.respond(winner)
+        else:
+            winner = "b" if winner == BLACK else "w"
+            self.respond(winner + " " + move)
 
     def genmove_cmd(self, args):
         """
@@ -265,8 +305,12 @@ class GtpConnection():
                 self.respond("resign")
             return
 
-        winner, move = self.board.solve_in_time(self.time_limit, color)
-        if (winner != color and winner != PASS):
+        try:
+            signal.signal(signal.SIGALRM, throw_key_interrupt)
+            signal.alarm(self.time_limit)
+            winner, move = GoBoardUtil.solve_gomoku(self.board, color)
+            signal.alarm(0)
+        except KeyboardInterrupt:
             move = self.go_engine.get_move(self.board, color)
 
         if move == PASS:
@@ -310,7 +354,8 @@ class GtpConnection():
         for move in moves:
             coords = point_to_coord(move, self.board.size)
             gtp_moves.append(format_point(coords))
-        sorted_moves = ' '.join(sorted(gtp_moves))
+        # adding sort key sorts by letter first then the numeric value A1, A2, > A10
+        sorted_moves = ' '.join(sorted(gtp_moves, key=lambda m: (m[0:1], int(m[1:]))))
         self.respond(sorted_moves)
     
     def gogui_rules_side_to_move_cmd(self, args):
@@ -356,32 +401,6 @@ class GtpConnection():
                      "pstring/Rules GameID/gogui-rules_game_id\n"
                      "pstring/Show Board/gogui-rules_board\n"
                      )
-
-    def timelimit_cmd(self, args):
-        try:
-            value = int(args[0])
-            if (value < 1 or value > 100):
-                raise ValueError
-        except:
-            self.respond("seconds must be an integer between 1 and 100")
-            return
-
-        self.time_limit = value
-
-    def solve_cmd(self, args):
-        winner, move = self.board.solve_in_time(self.time_limit, self.board.current_player)
-        if (winner == BLACK):
-            message = "b"
-        elif (winner == WHITE):
-            message = "w"
-        elif (winner == PASS):
-            message = "draw"
-        else:
-            message = "unknown"
-        if (winner == self.board.current_player or winner == PASS):
-            move_coord = point_to_coord(move, self.board.size)
-            message += " " + format_point(move_coord)
-        self.respond(message)
 
 def point_to_coord(point, boardsize):
     """
